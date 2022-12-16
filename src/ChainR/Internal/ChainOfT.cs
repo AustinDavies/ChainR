@@ -19,19 +19,20 @@ namespace ChainR.Internal
             return Execute(context, 0, cancellationToken);
         }
 
-        private Task Execute(TContext context, int index, CancellationToken cancellationToken)
+        private async Task Execute(TContext context, int index, CancellationToken cancellationToken)
         {
             if (index > _chainLinkHandlers.Count - 1)
-                return Task.CompletedTask;
+                return;
 
-            IChainLinkHandler<TContext> nextHandler;
-            if (_chainLinkHandlers.Count < index + 1)
-                nextHandler = _chainLinkHandlers[index + 1];
+            Task? nextHandlerTask = null;
 
-            return _chainLinkHandlers[index]
-                .Handle(context, 
-                    () => { return Execute(context, index + 1, cancellationToken); },
+            await _chainLinkHandlers[index]
+                .Handle(context,
+                    () => { nextHandlerTask = Execute(context, index + 1, cancellationToken); return nextHandlerTask; },
                     cancellationToken);
+
+            if (!(nextHandlerTask is null) && !nextHandlerTask.IsCompleted)
+                await nextHandlerTask;
         }
     }
 }
